@@ -1,0 +1,170 @@
+<html>
+<head>
+  <title>ADP JSON Tool</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+    }
+
+    h3 {
+        color: #333;
+    }
+
+    #jsonreceived {
+        background-color: #f4f4f9;
+        border: solid 1px #ddd;
+        padding: 10px;
+        margin-top: 10px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    #jsonpayload, #urifield {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    #sendbutton {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
+    #sendbutton:hover {
+        background-color: #45a049;
+    }
+
+    select {
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+
+    .error {
+        color: red;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+
+    .info {
+        color: #5bc0de;
+    }
+  </style>
+  <script>
+    function init() {
+        document.getElementById("sendbutton").addEventListener("click", function() { send() });
+    }
+
+    function send() {
+        const method = document.getElementById("methodselector").value;
+        let uri = document.getElementById("urifield").value.trim();
+
+        // Basic URI validation
+        if (uri == "") {
+            showError("URI field is required.");
+            return;
+        }
+
+        // Fallback for empty URI
+        if (!uri.startsWith("http://") && !uri.startsWith("https://")) {
+            showError("URI should start with 'http://' or 'https://'.");
+            return;
+        }
+
+        let bodyText = document.getElementById("jsonpayload").value.trim();
+        if (bodyText == "") {
+            bodyText = "{}"; // Default to empty JSON object if nothing is entered
+        }
+
+        try {
+            const bodyData = JSON.parse(bodyText);
+            document.getElementById("jsonpayload").value = ""; // Clear input field
+            sendRequest(method, uri, bodyData, (response, content) => responseHandler(response, content));
+        } catch (error) {
+            showError("Invalid JSON body.");
+        }
+    }
+
+    async function sendRequest(method, uri, data = {}, handler = handleResponse) {
+        const settings = {
+            method: method,
+            headers: { 'content-type': 'application/json' }
+        };
+        if (method != "GET") {
+            settings.body = JSON.stringify(data);
+        }
+        try {
+            const response = await fetch(uri, settings);
+            let content = await response.text(); // Get response as text
+            try {
+                content = JSON.parse(content); // Try parsing as JSON
+            } catch (e) {
+                // If not JSON, keep it as plain text
+            }
+            if (response.ok) {
+                handler(response, content);
+            } else {
+                showError('Error! Status = ' + response.status);
+            }
+        } catch (error) {
+            showError('Error: ' + error.message);
+        }
+    }
+
+    function responseHandler(response, content) {
+        const responseDiv = document.getElementById('jsonreceived');
+        if (typeof content === 'object') {
+            responseDiv.innerHTML = '<pre>' + JSON.stringify(content, null, 4) + '</pre>';
+        } else {
+            responseDiv.innerHTML = '<pre>' + content + '</pre>';
+        }
+    }
+
+    function showError(message) {
+        const errorDiv = document.createElement("div");
+        errorDiv.classList.add("error");
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+    }
+
+    window.onload = init;
+  </script>
+</head>
+
+<body>
+<h3>HTTP method:</h3>
+<select id="methodselector">
+  <option>GET</option>
+  <option>POST</option>
+  <option>PUT</option>
+  <option>DELETE</option>
+</select>
+
+<h3>URI</h3>
+<input type="url" id="urifield" placeholder="Enter the API URI here">
+
+<h3>JSON request body</h3>
+<textarea id="jsonpayload" placeholder="Enter JSON body here (if applicable)"></textarea>
+
+<button id="sendbutton">Send</button>
+
+<h3>Response</h3>
+<div id="jsonreceived">
+  Response displayed here
+</div>
+
+</body>
+</html>
